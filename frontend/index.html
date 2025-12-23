@@ -52,15 +52,21 @@
     <div id="result"></div>
   </div>
   <script>
-    const API_BASE = location.origin; // 同站部署
-    const menu = [
-      {name:"舒肥里肌餐盒", price:125},
-      {name:"舒肥雞腿餐盒", price:160},
-      {name:"品名較長的舒肥里肌餐盒", price:142},
-      {name:"EX暖食餐盒", price:125},
-      {name:"EX自選暖食餐盒", price:125},
-      {name:"LOKAL自選沙拉", price:160},
-    ];
+    const API_BASE = location.origin;
+    let menu = [];
+    async function loadMenu(){
+      try{
+        const r = await fetch(`${API_BASE}/api/config`);
+        const data = await r.json();
+        if(Array.isArray(data.menu)){ menu = data.menu; } else { menu = []; }
+      }catch(e){
+        menu = [
+          {name:"舒肥里肌餐盒", price:125},
+          {name:"舒肥雞腿餐盒", price:160},
+          {name:"品名較長的舒肥里肌餐盒", price:142},
+        ];
+      }
+    }
     const selected = new Map(); // name -> {unit_price, quantity, details}
     const menuEl = document.getElementById("menu");
     const summaryEl = document.getElementById("summary");
@@ -139,12 +145,16 @@
       info.textContent = `小計：${subtotal}　折扣(5%)：${discount}　合計：${total}　數量：${count}`;
       summaryEl.appendChild(info);
     }
-    document.getElementById("clear").onclick = () => { selected.clear(); renderSummary(); };
+    document.getElementById("clear").onclick = () => { selected.clear(); renderSummary(); renderMenu(); };
     document.getElementById("submit").onclick = async () => {
       const items = Array.from(selected.entries()).map(([name, v]) => ({
         name, unit_price: v.unit_price, quantity: v.quantity, details: v.details||""
       })).filter(x => x.quantity>0);
       if(items.length===0){ alert("請選擇餐點"); return; }
+      if(scene==="內用"){
+        const tno = Number(tableNoEl.value||0);
+        if(!tno || tno<1){ alert("請輸入桌號"); return; }
+      }
       const payload = {
         dine_type: scene,
         table_no: scene==="內用" ? Number(tableNoEl.value||0) : null,
@@ -160,12 +170,13 @@
         if(r.status===409){ alert("桌號有人，請重新輸入"); return; }
         const data = await r.json();
         document.getElementById("result").textContent = `建立成功，訂單編號：${data.id}`;
-        selected.clear(); renderSummary(); noteEl.value=""; tableNoEl.value="";
+        alert("訂單已送出 請耐心等待");
+        selected.clear(); renderSummary(); renderMenu(); noteEl.value=""; tableNoEl.value="";
       }catch(e){
         alert("送出失敗，請稍後再試");
       }
     };
-    renderMenu(); renderSummary();
+    (async()=>{ await loadMenu(); renderMenu(); renderSummary(); })();
     tableBox.classList.toggle("hidden", scene !== "內用");
   </script>
 </body>

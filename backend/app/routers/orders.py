@@ -76,3 +76,28 @@ def list_orders():
     rows = [serialize_order(o) for o in q.all()]
     db.close()
     return jsonify(rows)
+
+@blueprint.route("/api/orders/<int:order_id>/status", methods=["PATCH"])
+def update_order_status(order_id: int):
+    data = request.get_json(force=True) or {}
+    status = str(data.get("status","")).strip().lower()
+    if status not in ("served","paid"):
+        return jsonify({"error":"invalid status"}), 400
+    db = SessionLocal()
+    o = db.query(Order).filter(Order.id == order_id).first()
+    if not o:
+        db.close()
+        return jsonify({"error":"not found"}), 404
+    if status == "served":
+        o.status = "served"
+    elif status == "paid":
+        o.status = "paid"
+        o.paid_at = datetime.utcnow()
+    db.commit()
+    db.refresh(o)
+    res = serialize_order(o)
+    db.close()
+    return jsonify(res)
+@blueprint.route("/api/orders/<int:order_id>/status/", methods=["PATCH"])
+def update_order_status_slash(order_id: int):
+    return update_order_status(order_id)

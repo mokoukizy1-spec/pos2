@@ -23,6 +23,37 @@ CORS(app)
 app.register_blueprint(products_bp, url_prefix="/api/products")
 app.register_blueprint(backup_bp, url_prefix="/api/backup")
 app.register_blueprint(orders_bp)
+def _read_config():
+    path = os.path.join(BASE_DIR, "config.txt")
+    tables = 10
+    menu = []
+    section = None
+    if not os.path.exists(path):
+        return {"tables": tables, "menu": menu}
+    with open(path, "r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip().lower()
+                continue
+            if section == "tables":
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    if k.strip() == "count":
+                        try:
+                            tables = int(v.strip())
+                        except:
+                            pass
+            elif section == "menu":
+                if "=" in line:
+                    name, price = line.split("=", 1)
+                    try:
+                        menu.append({"name": name.strip(), "price": int(price.strip())})
+                    except:
+                        pass
+    return {"tables": tables, "menu": menu}
 @app.route("/")
 def root():
     # 嘗試以兩種根目錄定位前端檔案：app.static_folder 與 CWD/frontend
@@ -45,6 +76,10 @@ def health():
 @app.route("/static/<path:path>")
 def static_files(path):
     return send_from_directory("backend/app/static", path)
+@app.route("/api/config", methods=["GET"])
+def config_menu():
+    data = _read_config()
+    return jsonify(data)
 @app.route("/openapi.json")
 def openapi():
     path = Path("backend/app/openapi.json")

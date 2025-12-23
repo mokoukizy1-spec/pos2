@@ -1,4 +1,4 @@
-const API_BASE_URL = typeof window.API_BASE_URL === "string" ? window.API_BASE_URL : "http://localhost:8000";
+const API_BASE_URL = typeof window.API_BASE_URL === "string" ? window.API_BASE_URL : location.origin;
 const grid = document.getElementById("grid");
 const modal = document.getElementById("modal");
 const modalClose = document.getElementById("modalClose");
@@ -50,9 +50,14 @@ function closeModal(){modal.classList.remove("show")}
 modalClose.addEventListener("click", closeModal);
 modal.addEventListener("click", e=>{if(e.target.classList.contains("modal-backdrop")) closeModal()});
 async function fetchProducts(){
-  const r = await fetch(`${API_BASE_URL}/api/products/`);
-  const data = await r.json();
-  allProducts = data;
+  try{
+    const r = await fetch(`${API_BASE_URL}/api/config`);
+    const data = await r.json();
+    const menu = Array.isArray(data.menu) ? data.menu : [];
+    allProducts = menu.map(m=>({id:0, name:m.name, price:m.price, currency:"TWD", description:"menu", image_url:""}));
+  }catch(e){
+    allProducts = [];
+  }
   render(allProducts);
 }
 for(const el of document.querySelectorAll(".filter")){
